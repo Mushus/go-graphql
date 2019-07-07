@@ -1,0 +1,44 @@
+type Query {
+  webSites: [WebSite!]
+  documents: [Document!]
+  categories: [Category!]
+}
+
+type Mutation {
+  createWebSite(input: NewWebSite!): WebSite!
+  createDocumument(input: NewDocumument!): Document!
+  createCategory(input: NewCategory!): Category!
+}
+
+input NewWebSite {
+  name: String!
+}
+
+type WebSite {
+  id: ID!
+  name: String!
+  documents: [Document!]!
+}
+
+input NewDocumument {
+  title: String!
+  body: String!
+  categories: [ID!]!
+}
+
+type Document {
+  id: ID!
+  title: String!
+  body: String!
+  categories: [Category!]!
+}
+
+input NewCategory {
+  name: String!
+}
+
+type Category {
+  id: ID!
+  name: String!
+  documents: [Document!]
+}
