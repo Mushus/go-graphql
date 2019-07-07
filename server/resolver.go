@@ -4,9 +4,12 @@ import (
 	"context"
 
 	go_graphql "github.com/Mushus/go-graphql"
+	"github.com/jinzhu/gorm"
 )
 
-type Resolver struct{}
+type Resolver struct {
+	db *gorm.DB
+}
 
 func (r *Resolver) Mutation() go_graphql.MutationResolver {
 	return &mutationResolver{r}
@@ -18,7 +21,14 @@ func (r *Resolver) Query() go_graphql.QueryResolver {
 type mutationResolver struct{ *Resolver }
 
 func (r *mutationResolver) CreateWebSite(ctx context.Context, input go_graphql.NewWebSite) (*go_graphql.WebSite, error) {
-	panic("not implemented")
+	entity := WebSite{
+		Name: input.Name,
+	}
+
+	if err := r.db.Save(&entity).Error; err != nil {
+		return nil, err
+	}
+	return nil, nil
 }
 func (r *mutationResolver) CreateDocumument(ctx context.Context, input go_graphql.NewDocumument) (*go_graphql.Document, error) {
 	panic("not implemented")

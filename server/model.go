@@ -1,24 +1,72 @@
 package main
 
 import (
+	"strconv"
+
+	go_graphql "github.com/Mushus/go-graphql"
 	"github.com/jinzhu/gorm"
 )
 
 type WebSite struct {
 	gorm.Model
 	Name      string
-	Documents []Document
+	Documents Documents
+}
+
+func (w WebSite) ToRespModel() *go_graphql.WebSite {
+	return &go_graphql.WebSite{
+		ID:        strconv.FormatUint(uint64(w.Model.ID), 10),
+		Name:      w.Name,
+		Documents: w.Documents.ToRespModel(),
+	}
+}
+
+type Documents []Document
+
+func (d Documents) ToRespModel() []*go_graphql.Document {
+	resp := make([]*go_graphql.Document, 0, len(d))
+	for _, document := range d {
+		resp = append(resp, document.ToRespModel())
+	}
+	return resp
 }
 
 type Document struct {
 	gorm.Model
-	Name     string
-	Body     string
-	Category []Category `gorm:"many2many:document_categories;"`
+	Title      string
+	Body       string
+	Categories Categories `gorm:"many2many:document_categories;"`
+}
+
+func (d Document) ToRespModel() *go_graphql.Document {
+	return &go_graphql.Document{
+		ID:         strconv.FormatUint(uint64(d.Model.ID), 10),
+		Title:      d.Title,
+		Body:       d.Body,
+		Categories: d.Categories.ToRespModel(),
+	}
+}
+
+type Categories []Category
+
+func (c Categories) ToRespModel() []*go_graphql.Category {
+	resp := make([]*go_graphql.Category, 0, len(c))
+	for _, category := range c {
+		resp = append(resp, category.ToRespModel())
+	}
+	return resp
 }
 
 type Category struct {
 	gorm.Model
 	Name      string
-	Documents []Document `gorm:"many2many:document_categories;"`
+	Documents Documents `gorm:"many2many:document_categories;"`
+}
+
+func (c Category) ToRespModel() *go_graphql.Category {
+	return &go_graphql.Category{
+		ID:        strconv.FormatUint(uint64(c.Model.ID), 10),
+		Name:      c.Name,
+		Documents: c.Documents.ToRespModel(),
+	}
 }
