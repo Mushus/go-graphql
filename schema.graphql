@@ -1,7 +1,11 @@
 type Query {
-  webSites: [WebSite!]
-  documents: [Document!]
-  categories: [Category!]
+  webSite(id: ID!): WebSite
+  document(id: ID!): Document
+  category(id: ID, name: String): Category
+
+  allWebSites: [WebSite!]!
+  allDocuments(input: QueryDocuments): [Document!]!
+  allCategories(input: QueryCategories): [Category!]!
 }
 
 type Mutation {
@@ -17,24 +21,34 @@ input NewWebSite {
 type WebSite {
   id: ID!
   name: String!
-  documents: [Document!]!
+  documents: [Document!]
 }
 
 input NewDocumument {
   title: String!
   body: String!
-  categories: [ID!]!
+  categories: [ID!]
+}
+
+input QueryDocuments {
+  webSiteId: ID
+  categoryName: String
+  categoryId: ID
 }
 
 type Document {
   id: ID!
   title: String!
   body: String!
-  categories: [Category!]!
-}
+  categories: [Category!]
+}∂ 
 
 input NewCategory {
   name: String!
+}
+
+input QueryCategories {
+  withDocuments: Boolean
 }
 
 type Category {

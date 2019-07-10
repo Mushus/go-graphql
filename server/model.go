@@ -7,21 +7,41 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
-type WebSite struct {
-	gorm.Model
-	Name      string
-	Documents Documents
-}
+type (
+	WebSite struct {
+		gorm.Model
+		Name      string
+		Documents Documents
+	}
 
-func (w WebSite) ToRespModel() *go_graphql.WebSite {
+	Document struct {
+		gorm.Model
+		WebSiteID  uint
+		Title      string
+		Body       string
+		Categories Categories `gorm:"many2many:document_categories;"`
+	}
+
+	Category struct {
+		gorm.Model
+		Name      string
+		Documents Documents `gorm:"many2many:document_categories;"`
+	}
+
+	Documents  []Document
+	Categories []Category
+)
+
+func (w *WebSite) ToRespModel() *go_graphql.WebSite {
+	if w == nil {
+		return nil
+	}
 	return &go_graphql.WebSite{
 		ID:        strconv.FormatUint(uint64(w.Model.ID), 10),
 		Name:      w.Name,
 		Documents: w.Documents.ToRespModel(),
 	}
 }
-
-type Documents []Document
 
 func (d Documents) ToRespModel() []*go_graphql.Document {
 	resp := make([]*go_graphql.Document, 0, len(d))
@@ -31,14 +51,10 @@ func (d Documents) ToRespModel() []*go_graphql.Document {
 	return resp
 }
 
-type Document struct {
-	gorm.Model
-	Title      string
-	Body       string
-	Categories Categories `gorm:"many2many:document_categories;"`
-}
-
-func (d Document) ToRespModel() *go_graphql.Document {
+func (d *Document) ToRespModel() *go_graphql.Document {
+	if d == nil {
+		return nil
+	}
 	return &go_graphql.Document{
 		ID:         strconv.FormatUint(uint64(d.Model.ID), 10),
 		Title:      d.Title,
@@ -46,8 +62,6 @@ func (d Document) ToRespModel() *go_graphql.Document {
 		Categories: d.Categories.ToRespModel(),
 	}
 }
-
-type Categories []Category
 
 func (c Categories) ToRespModel() []*go_graphql.Category {
 	resp := make([]*go_graphql.Category, 0, len(c))
@@ -57,13 +71,10 @@ func (c Categories) ToRespModel() []*go_graphql.Category {
 	return resp
 }
 
-type Category struct {
-	gorm.Model
-	Name      string
-	Documents Documents `gorm:"many2many:document_categories;"`
-}
-
-func (c Category) ToRespModel() *go_graphql.Category {
+func (c *Category) ToRespModel() *go_graphql.Category {
+	if c == nil {
+		return nil
+	}
 	return &go_graphql.Category{
 		ID:        strconv.FormatUint(uint64(c.Model.ID), 10),
 		Name:      c.Name,

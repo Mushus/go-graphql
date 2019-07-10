@@ -8,6 +8,7 @@ import (
 	"errors"
 	"strconv"
 	"sync"
+	"sync/atomic"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/introspection"
@@ -61,9 +62,12 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		Categories func(childComplexity int) int
-		Documents  func(childComplexity int) int
-		WebSites   func(childComplexity int) int
+		AllCategories func(childComplexity int, input *QueryCategories) int
+		AllDocuments  func(childComplexity int, input *QueryDocuments) int
+		AllWebSites   func(childComplexity int) int
+		Category      func(childComplexity int, id *string, name *string) int
+		Document      func(childComplexity int, id string) int
+		WebSite       func(childComplexity int, id string) int
 	}
 
 	WebSite struct {
@@ -79,9 +83,12 @@ type MutationResolver interface {
 	CreateCategory(ctx context.Context, input NewCategory) (*Category, error)
 }
 type QueryResolver interface {
-	WebSites(ctx context.Context) ([]*WebSite, error)
-	Documents(ctx context.Context) ([]*Document, error)
-	Categories(ctx context.Context) ([]*Category, error)
+	WebSite(ctx context.Context, id string) (*WebSite, error)
+	Document(ctx context.Context, id string) (*Document, error)
+	Category(ctx context.Context, id *string, name *string) (*Category, error)
+	AllWebSites(ctx context.Context) ([]*WebSite, error)
+	AllDocuments(ctx context.Context, input *QueryDocuments) ([]*Document, error)
+	AllCategories(ctx context.Context, input *QueryCategories) ([]*Category, error)
 }
 
 type executableSchema struct {
@@ -184,26 +191,72 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Mutation.CreateWebSite(childComplexity, args["input"].(NewWebSite)), true
 
-	case "Query.categories":
-		if e.complexity.Query.Categories == nil {
+	case "Query.allCategories":
+		if e.complexity.Query.AllCategories == nil {
 			break
 		}
 
-		return e.complexity.Query.Categories(childComplexity), true
+		args, err := ec.field_Query_allCategories_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
 
-	case "Query.documents":
-		if e.complexity.Query.Documents == nil {
+		return e.complexity.Query.AllCategories(childComplexity, args["input"].(*QueryCategories)), true
+
+	case "Query.allDocuments":
+		if e.complexity.Query.AllDocuments == nil {
 			break
 		}
 
-		return e.complexity.Query.Documents(childComplexity), true
+		args, err := ec.field_Query_allDocuments_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
 
-	case "Query.webSites":
-		if e.complexity.Query.WebSites == nil {
+		return e.complexity.Query.AllDocuments(childComplexity, args["input"].(*QueryDocuments)), true
+
+	case "Query.allWebSites":
+		if e.complexity.Query.AllWebSites == nil {
 			break
 		}
 
-		return e.complexity.Query.WebSites(childComplexity), true
+		return e.complexity.Query.AllWebSites(childComplexity), true
+
+	case "Query.category":
+		if e.complexity.Query.Category == nil {
+			break
+		}
+
+		args, err := ec.field_Query_category_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Category(childComplexity, args["id"].(*string), args["name"].(*string)), true
+
+	case "Query.document":
+		if e.complexity.Query.Document == nil {
+			break
+		}
+
+		args, err := ec.field_Query_document_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Document(childComplexity, args["id"].(string)), true
+
+	case "Query.webSite":
+		if e.complexity.Query.WebSite == nil {
+			break
+		}
+
+		args, err := ec.field_Query_webSite_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.WebSite(childComplexity, args["id"].(string)), true
 
 	case "WebSite.documents":
 		if e.complexity.WebSite.Documents == nil {
@@ -289,9 +342,13 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 
 var parsedSchema = gqlparser.MustLoadSchema(
 	&ast.Source{Name: "schema.graphql", Input: `type Query {
-  webSites: [WebSite!]
-  documents: [Document!]
-  categories: [Category!]
+  webSite(id: ID!): WebSite
+  document(id: ID!): Document
+  category(id: ID, name: String): Category
+
+  allWebSites: [WebSite!]!
+  allDocuments(input: QueryDocuments): [Document!]!
+  allCategories(input: QueryCategories): [Category!]!
 }
 
 type Mutation {
@@ -316,6 +373,12 @@ input NewDocumument {
   categories: [ID!]!
 }
 
+input QueryDocuments {
+  webSiteId: ID
+  categoryName: String
+  categoryId: ID
+}
+
 type Document {
   id: ID!
   title: String!
@@ -325,6 +388,10 @@ type Document {
 
 input NewCategory {
   name: String!
+}
+
+input QueryCategories {
+  withDocuments: Boolean
 }
 
 type Category {
@@ -392,6 +459,84 @@ func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs
 		}
 	}
 	args["name"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_allCategories_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *QueryCategories
+	if tmp, ok := rawArgs["input"]; ok {
+		arg0, err = ec.unmarshalOQueryCategories2ᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐQueryCategories(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_allDocuments_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *QueryDocuments
+	if tmp, ok := rawArgs["input"]; ok {
+		arg0, err = ec.unmarshalOQueryDocuments2ᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐQueryDocuments(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_category_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 *string
+	if tmp, ok := rawArgs["id"]; ok {
+		arg0, err = ec.unmarshalOID2ᚖstring(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	var arg1 *string
+	if tmp, ok := rawArgs["name"]; ok {
+		arg1, err = ec.unmarshalOString2ᚖstring(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["name"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_document_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["id"]; ok {
+		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_webSite_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	var arg0 string
+	if tmp, ok := rawArgs["id"]; ok {
+		arg0, err = ec.unmarshalNID2string(ctx, tmp)
+		if err != nil {
+			return nil, err
+		}
+	}
+	args["id"] = arg0
 	return args, nil
 }
 
@@ -819,7 +964,130 @@ func (ec *executionContext) _Mutation_createCategory(ctx context.Context, field 
 	return ec.marshalNCategory2ᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐCategory(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Query_webSites(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Query_webSite(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+		ec.Tracer.EndFieldExecution(ctx)
+	}()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_webSite_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().WebSite(rctx, args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*WebSite)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOWebSite2ᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐWebSite(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_document(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+		ec.Tracer.EndFieldExecution(ctx)
+	}()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_document_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Document(rctx, args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*Document)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalODocument2ᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐDocument(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_category(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	ctx = ec.Tracer.StartFieldExecution(ctx, field)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+		ec.Tracer.EndFieldExecution(ctx)
+	}()
+	rctx := &graphql.ResolverContext{
+		Object:   "Query",
+		Field:    field,
+		Args:     nil,
+		IsMethod: true,
+	}
+	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_category_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
+	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Category(rctx, args["id"].(*string), args["name"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*Category)
+	rctx.Result = res
+	ctx = ec.Tracer.StartFieldChildExecution(ctx)
+	return ec.marshalOCategory2ᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐCategory(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) _Query_allWebSites(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() {
 		if r := recover(); r != nil {
@@ -838,22 +1106,25 @@ func (ec *executionContext) _Query_webSites(ctx context.Context, field graphql.C
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().WebSites(rctx)
+		return ec.resolvers.Query().AllWebSites(rctx)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
 	res := resTmp.([]*WebSite)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalOWebSite2ᚕᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐWebSite(ctx, field.Selections, res)
+	return ec.marshalNWebSite2ᚕᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐWebSite(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Query_documents(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Query_allDocuments(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() {
 		if r := recover(); r != nil {
@@ -869,25 +1140,35 @@ func (ec *executionContext) _Query_documents(ctx context.Context, field graphql.
 		IsMethod: true,
 	}
 	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_allDocuments_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Documents(rctx)
+		return ec.resolvers.Query().AllDocuments(rctx, args["input"].(*QueryDocuments))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
 	res := resTmp.([]*Document)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalODocument2ᚕᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐDocument(ctx, field.Selections, res)
+	return ec.marshalNDocument2ᚕᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐDocument(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) _Query_categories(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+func (ec *executionContext) _Query_allCategories(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	ctx = ec.Tracer.StartFieldExecution(ctx, field)
 	defer func() {
 		if r := recover(); r != nil {
@@ -903,22 +1184,32 @@ func (ec *executionContext) _Query_categories(ctx context.Context, field graphql
 		IsMethod: true,
 	}
 	ctx = graphql.WithResolverContext(ctx, rctx)
+	rawArgs := field.ArgumentMap(ec.Variables)
+	args, err := ec.field_Query_allCategories_args(ctx, rawArgs)
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	rctx.Args = args
 	ctx = ec.Tracer.StartFieldResolverExecution(ctx, rctx)
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Categories(rctx)
+		return ec.resolvers.Query().AllCategories(rctx, args["input"].(*QueryCategories))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !ec.HasError(rctx) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
 	res := resTmp.([]*Category)
 	rctx.Result = res
 	ctx = ec.Tracer.StartFieldChildExecution(ctx)
-	return ec.marshalOCategory2ᚕᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐCategory(ctx, field.Selections, res)
+	return ec.marshalNCategory2ᚕᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐCategory(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -2324,6 +2615,54 @@ func (ec *executionContext) unmarshalInputNewWebSite(ctx context.Context, obj in
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputQueryCategories(ctx context.Context, obj interface{}) (QueryCategories, error) {
+	var it QueryCategories
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "withDocuments":
+			var err error
+			it.WithDocuments, err = ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputQueryDocuments(ctx context.Context, obj interface{}) (QueryDocuments, error) {
+	var it QueryDocuments
+	var asMap = obj.(map[string]interface{})
+
+	for k, v := range asMap {
+		switch k {
+		case "webSiteId":
+			var err error
+			it.WebSiteID, err = ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "categoryName":
+			var err error
+			it.CategoryName, err = ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		case "categoryId":
+			var err error
+			it.CategoryID, err = ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+		}
+	}
+
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -2464,7 +2803,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Query")
-		case "webSites":
+		case "webSite":
 			field := field
 			out.Concurrently(i, func() (res graphql.Marshaler) {
 				defer func() {
@@ -2472,10 +2811,10 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Query_webSites(ctx, field)
+				res = ec._Query_webSite(ctx, field)
 				return res
 			})
-		case "documents":
+		case "document":
 			field := field
 			out.Concurrently(i, func() (res graphql.Marshaler) {
 				defer func() {
@@ -2483,10 +2822,10 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Query_documents(ctx, field)
+				res = ec._Query_document(ctx, field)
 				return res
 			})
-		case "categories":
+		case "category":
 			field := field
 			out.Concurrently(i, func() (res graphql.Marshaler) {
 				defer func() {
@@ -2494,7 +2833,49 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 						ec.Error(ctx, ec.Recover(ctx, r))
 					}
 				}()
-				res = ec._Query_categories(ctx, field)
+				res = ec._Query_category(ctx, field)
+				return res
+			})
+		case "allWebSites":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_allWebSites(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "allDocuments":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_allDocuments(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
+				return res
+			})
+		case "allCategories":
+			field := field
+			out.Concurrently(i, func() (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_allCategories(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&invalids, 1)
+				}
 				return res
 			})
 		case "__type":
@@ -2983,6 +3364,43 @@ func (ec *executionContext) marshalNWebSite2githubᚗcomᚋMushusᚋgoᚑgraphql
 	return ec._WebSite(ctx, sel, &v)
 }
 
+func (ec *executionContext) marshalNWebSite2ᚕᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐWebSite(ctx context.Context, sel ast.SelectionSet, v []*WebSite) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		rctx := &graphql.ResolverContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithResolverContext(ctx, rctx)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNWebSite2ᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐWebSite(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+	return ret
+}
+
 func (ec *executionContext) marshalNWebSite2ᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐWebSite(ctx context.Context, sel ast.SelectionSet, v *WebSite) graphql.Marshaler {
 	if v == nil {
 		if !ec.HasError(graphql.GetResolverContext(ctx)) {
@@ -3242,44 +3660,19 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	return ec.marshalOBoolean2bool(ctx, sel, *v)
 }
 
-func (ec *executionContext) marshalOCategory2ᚕᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐCategory(ctx context.Context, sel ast.SelectionSet, v []*Category) graphql.Marshaler {
+func (ec *executionContext) marshalOCategory2githubᚗcomᚋMushusᚋgoᚑgraphqlᚐCategory(ctx context.Context, sel ast.SelectionSet, v Category) graphql.Marshaler {
+	return ec._Category(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOCategory2ᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐCategory(ctx context.Context, sel ast.SelectionSet, v *Category) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		rctx := &graphql.ResolverContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithResolverContext(ctx, rctx)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNCategory2ᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐCategory(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
+	return ec._Category(ctx, sel, v)
+}
 
-	}
-	wg.Wait()
-	return ret
+func (ec *executionContext) marshalODocument2githubᚗcomᚋMushusᚋgoᚑgraphqlᚐDocument(ctx context.Context, sel ast.SelectionSet, v Document) graphql.Marshaler {
+	return ec._Document(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalODocument2ᚕᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐDocument(ctx context.Context, sel ast.SelectionSet, v []*Document) graphql.Marshaler {
@@ -3322,6 +3715,60 @@ func (ec *executionContext) marshalODocument2ᚕᚖgithubᚗcomᚋMushusᚋgoᚑ
 	return ret
 }
 
+func (ec *executionContext) marshalODocument2ᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐDocument(ctx context.Context, sel ast.SelectionSet, v *Document) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._Document(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOID2string(ctx context.Context, v interface{}) (string, error) {
+	return graphql.UnmarshalID(v)
+}
+
+func (ec *executionContext) marshalOID2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
+	return graphql.MarshalID(v)
+}
+
+func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v interface{}) (*string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalOID2string(ctx, v)
+	return &res, err
+}
+
+func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.SelectionSet, v *string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec.marshalOID2string(ctx, sel, *v)
+}
+
+func (ec *executionContext) unmarshalOQueryCategories2githubᚗcomᚋMushusᚋgoᚑgraphqlᚐQueryCategories(ctx context.Context, v interface{}) (QueryCategories, error) {
+	return ec.unmarshalInputQueryCategories(ctx, v)
+}
+
+func (ec *executionContext) unmarshalOQueryCategories2ᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐQueryCategories(ctx context.Context, v interface{}) (*QueryCategories, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalOQueryCategories2githubᚗcomᚋMushusᚋgoᚑgraphqlᚐQueryCategories(ctx, v)
+	return &res, err
+}
+
+func (ec *executionContext) unmarshalOQueryDocuments2githubᚗcomᚋMushusᚋgoᚑgraphqlᚐQueryDocuments(ctx context.Context, v interface{}) (QueryDocuments, error) {
+	return ec.unmarshalInputQueryDocuments(ctx, v)
+}
+
+func (ec *executionContext) unmarshalOQueryDocuments2ᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐQueryDocuments(ctx context.Context, v interface{}) (*QueryDocuments, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalOQueryDocuments2githubᚗcomᚋMushusᚋgoᚑgraphqlᚐQueryDocuments(ctx, v)
+	return &res, err
+}
+
 func (ec *executionContext) unmarshalOString2string(ctx context.Context, v interface{}) (string, error) {
 	return graphql.UnmarshalString(v)
 }
@@ -3345,44 +3792,15 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	return ec.marshalOString2string(ctx, sel, *v)
 }
 
-func (ec *executionContext) marshalOWebSite2ᚕᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐWebSite(ctx context.Context, sel ast.SelectionSet, v []*WebSite) graphql.Marshaler {
+func (ec *executionContext) marshalOWebSite2githubᚗcomᚋMushusᚋgoᚑgraphqlᚐWebSite(ctx context.Context, sel ast.SelectionSet, v WebSite) graphql.Marshaler {
+	return ec._WebSite(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalOWebSite2ᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐWebSite(ctx context.Context, sel ast.SelectionSet, v *WebSite) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		rctx := &graphql.ResolverContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithResolverContext(ctx, rctx)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNWebSite2ᚖgithubᚗcomᚋMushusᚋgoᚑgraphqlᚐWebSite(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-	return ret
+	return ec._WebSite(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalO__EnumValue2ᚕgithubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐEnumValue(ctx context.Context, sel ast.SelectionSet, v []introspection.EnumValue) graphql.Marshaler {

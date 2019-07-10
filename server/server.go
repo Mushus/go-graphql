@@ -19,7 +19,7 @@ func main() {
 		port = defaultPort
 	}
 
-	db := gorm.Open("sqlite3", "test.db")
+	db, _ := gorm.Open("sqlite3", "test.db")
 	db = db.Debug()
 	db.AutoMigrate(&WebSite{}, &Document{}, &Category{})
 

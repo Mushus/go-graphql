@@ -27,12 +27,21 @@ func (r *mutationResolver) CreateCategory(ctx context.Context, input NewCategory
 
 type queryResolver struct{ *Resolver }
 
-func (r *queryResolver) WebSites(ctx context.Context) ([]*WebSite, error) {
+func (r *queryResolver) WebSite(ctx context.Context, id string) (*WebSite, error) {
 	panic("not implemented")
 }
-func (r *queryResolver) Documents(ctx context.Context) ([]*Document, error) {
+func (r *queryResolver) Document(ctx context.Context, id string) (*Document, error) {
 	panic("not implemented")
 }
-func (r *queryResolver) Categories(ctx context.Context) ([]*Category, error) {
+func (r *queryResolver) Category(ctx context.Context, id *string, name *string) (*Category, error) {
+	panic("not implemented")
+}
+func (r *queryResolver) AllWebSites(ctx context.Context) ([]*WebSite, error) {
+	panic("not implemented")
+}
+func (r *queryResolver) AllDocuments(ctx context.Context, input *QueryDocuments) ([]*Document, error) {
+	panic("not implemented")
+}
+func (r *queryResolver) AllCategories(ctx context.Context, input *QueryCategories) ([]*Category, error) {
 	panic("not implemented")
 }

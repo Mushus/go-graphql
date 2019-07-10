@@ -29,6 +29,16 @@ type NewWebSite struct {
 	Name string `json:"name"`
 }
 
+type QueryCategories struct {
+	WithDocuments *bool `json:"withDocuments"`
+}
+
+type QueryDocuments struct {
+	WebSiteID    *string `json:"webSiteId"`
+	CategoryName *string `json:"categoryName"`
+	CategoryID   *string `json:"categoryId"`
+}
+
 type WebSite struct {
 	ID        string      `json:"id"`
 	Name      string      `json:"name"`
